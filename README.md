@@ -98,6 +98,21 @@ Threat model write-up: [`docs/threat-model.md`](docs/threat-model.md).
 
 If you want that audit done on a private surface, contact is on [the research site](https://forkaizen2023-sys.github.io).
 
+## Appendix — candidate search (2026-04-08)
+
+Query (GitHub Code Search): workflows combining
+`id-token: write` with `allowed_non_write_users: '*'`.
+
+Result: 982 file hits.
+
+Not a vulnerability count.
+Most hits were copies of one public template family.
+No org list. No claim that Actions was enabled.
+No claim that the four-clause test passed.
+
+In-scope rows require the table in docs/methodology.md.
+That table is not in this appendix.
+
 ## License
 
 Documentation: [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).  
