@@ -1,0 +1,73 @@
+# Reference control — privilege split for an agent review.
+# Job A: model sees the diff, writes a file. No identity.
+# Job B: a script posts the file. No model.
+#
+# Copy and adapt. Pin every action. Do not add id-token: write to Job A.
+# This file is a pattern, not a drop-in for every repo.
+
+name: double-job-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  analyze:
+    name: untrusted-analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Produce review artifact
+        # Replace with your agent action. Keep this job free of:
+        #   id-token: write, cloud roles, PATs, OAuth tokens for the agent
+        #   unless you have measured why they must live here.
+        uses: anthropics/claude-code-action@v1
+        with:
+          prompt: |
+            Review the current working tree as a code reviewer.
+            Write findings to review.md as Markdown only.
+            Do not run network tools. Do not read process environment.
+          # Pass only the credential required to call the model.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: '--allowedTools "Read,Glob,Grep"'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: review-artifact
+          path: review.md
+          if-no-files-found: warn
+
+  publish:
+    name: trusted-publication
+    needs: analyze
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: review-artifact
+
+      - name: Post review as data
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = '_review artifact missing_';
+            if (fs.existsSync('review.md')) {
+              body = fs.readFileSync('review.md', 'utf8').slice(0, 65000);
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
